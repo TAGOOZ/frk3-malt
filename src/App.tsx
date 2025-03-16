@@ -28,6 +28,7 @@ interface Paddle {
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
@@ -35,19 +36,20 @@ function App() {
   const animationFrameRef = useRef<number>();
   const gameOverSound = useRef<HTMLAudioElement>(null);
   const winSound = useRef<HTMLAudioElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
-  // Game constants
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
-  const PADDLE_HEIGHT = 20;
-  const PADDLE_WIDTH = 100;
-  const BALL_RADIUS = 8;
+  // Game constants - now based on screen size
+  const CANVAS_WIDTH = dimensions.width;
+  const CANVAS_HEIGHT = dimensions.height;
+  const PADDLE_HEIGHT = Math.floor(CANVAS_HEIGHT * 0.033); // 3.3% of height
+  const PADDLE_WIDTH = Math.floor(CANVAS_WIDTH * 0.125); // 12.5% of width
+  const BALL_RADIUS = Math.floor(CANVAS_WIDTH * 0.01); // 1% of width
   const BRICK_ROWS = 3;
   const BRICK_COLS = 5;
   const BRICK_WIDTH = CANVAS_WIDTH / BRICK_COLS - 10;
-  const BRICK_HEIGHT = 80;
-  const BRICK_PADDING = 10;
-  const BALL_SPEED = 5;
+  const BRICK_HEIGHT = Math.floor(CANVAS_HEIGHT * 0.133); // 13.3% of height
+  const BRICK_PADDING = Math.floor(CANVAS_WIDTH * 0.0125); // 1.25% of width
+  const BALL_SPEED = Math.floor(CANVAS_WIDTH * 0.00625); // Scaled based on width
 
   // Game state
   const [paddle, setPaddle] = useState<Paddle>({
@@ -83,6 +85,55 @@ function App() {
   // Load friend's image
   const brickImage = new Image();
   brickImage.src = brickImageSrc;
+
+  // Update canvas size on window resize
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const containerHeight = window.innerHeight * 0.7; // 70% of viewport height
+        setDimensions({
+          width: Math.min(800, containerWidth),
+          height: Math.min(600, containerHeight)
+        });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  // Touch event handlers
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isPaused && gameStarted && !gameOver) {
+      e.preventDefault();
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const canvasRect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const touchX = touch.clientX - canvasRect.left;
+        setPaddle((prevPaddle) => ({
+          ...prevPaddle,
+          x: Math.min(
+            Math.max(touchX - PADDLE_WIDTH / 2, 0),
+            CANVAS_WIDTH - PADDLE_WIDTH
+          ),
+        }));
+      }
+    }
+  };
+
+  // Add touch event listeners
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      return () => {
+        canvas.removeEventListener('touchmove', handleTouchMove);
+      };
+    }
+  }, [gameStarted, gameOver, isPaused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -272,8 +323,8 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="text-center">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="text-center w-full max-w-4xl" ref={containerRef}>
         <div className="mb-4">
           <h1 className="text-4xl font-bold text-white mb-2">فرقع الملط</h1>
           <div className="flex items-center justify-center gap-4">
@@ -289,13 +340,14 @@ function App() {
             )}
           </div>
         </div>
-        <div className="relative">
+        <div className="relative w-full">
           <canvas
             ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="bg-gray-800 rounded-lg shadow-xl"
+            width={dimensions.width}
+            height={dimensions.height}
+            className="bg-gray-800 rounded-lg shadow-xl mx-auto touch-none"
             onClick={() => !gameStarted && !gameOver && setGameStarted(true)}
+            style={{ maxWidth: '100%', height: 'auto' }}
           />
           <audio 
             ref={gameOverSound}
@@ -308,10 +360,10 @@ function App() {
           {!gameStarted && !gameOver && (
             <div className="absolute inset-0 flex items-center justify-center">
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-lg"
                 onClick={() => setGameStarted(true)}
               >
-                Start Game
+                ابدأ اللعب
               </button>
             </div>
           )}
@@ -319,16 +371,16 @@ function App() {
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
               <div className="text-center">
                 {bricks.some(brick => brick.visible) ? (
-                  <h2 className="text-3xl font-bold text-white mb-4">جرا ايه يا ابو كيكة مش عارف تكسب</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">جرا ايه يا ابو كيكة مش عارف تكسب</h2>
                 ) : (
-                  <h2 className="text-3xl font-bold text-white mb-4">مبروك كسبت! 🎉</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">مبروك كسبت! 🎉</h2>
                 )}
-                <p className="text-xl text-white mb-4">Final Score: {score}</p>
+                <p className="text-xl text-white mb-4">Score: {score}</p>
                 <button
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-lg"
                   onClick={resetGame}
                 >
-                  Play Again
+                  العب تاني
                 </button>
               </div>
             </div>
@@ -336,13 +388,13 @@ function App() {
           {isPaused && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
               <div className="text-center">
-                <h2 className="text-3xl font-bold text-white mb-4">Paused</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">وقفت اللعب</h2>
                 <button
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center gap-2 mx-auto"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded flex items-center gap-2 mx-auto text-lg"
                   onClick={togglePause}
                 >
                   <Play size={20} />
-                  Resume Game
+                  كمل اللعب
                 </button>
               </div>
             </div>

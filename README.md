@@ -22,12 +22,12 @@ A fun and customized version of the classic Brick Breaker game, built with React
 
 1. Clone this repository
 ```bash
-git clone [repository-url]
+git clone https://github.com/TAGOOZ/frk3-malt.git
+cd frk3-malt
 ```
 
 2. Install dependencies
 ```bash
-cd فرقع-الملط
 npm install
 ```
 
